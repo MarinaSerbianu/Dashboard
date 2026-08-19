@@ -1,0 +1,118 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+type Status = "now" | "next" | "waiting" | "done";
+type Priority = "critical" | "high" | "medium" | "low";
+type Subtask = { id: string; label: string; done: boolean };
+type Task = {
+  id: string;
+  client: string;
+  title: string;
+  priority: Priority;
+  status: Status;
+  hours: number;
+  note?: string;
+  subtasks: Subtask[];
+};
+
+const seed: Task[] = [
+  { id:"nataly", client:"Nataly", title:"Promo Campaign — 3 teme", priority:"critical", status:"now", hours:4.5, note:"Laser −50% · Endosfera −25% · Hydrafacial −20%", subtasks:[
+    {id:"n1",label:"Laser Epilation — RU + RO / Post + Story",done:false},
+    {id:"n2",label:"Endosfera — RU + RO / Post + Story",done:false},
+    {id:"n3",label:"Hydrafacial — RU + RO / Post + Story",done:false},
+  ]},
+  { id:"ciocarlia", client:"Ciocârlia · Diana Roșca", title:"Website", priority:"high", status:"now", hours:13, note:"Principalul proiect — lucrează în blocuri de focus", subtasks:[
+    {id:"c1",label:"Structură + pagini",done:false},{id:"c2",label:"Design responsive",done:false},{id:"c3",label:"2 cărți + autoare",done:false},{id:"c4",label:"Comandă / cumpărare",done:false},{id:"c5",label:"Blog",done:false},{id:"c6",label:"Mobile QA",done:false},{id:"c7",label:"Deploy",done:false}
+  ]},
+  { id:"co2", client:"D DERMA · Liliana", title:"CO₂ — seria de postări", priority:"high", status:"waiting", hours:2.5, note:"Waiting for final photos from Liliana", subtasks:[
+    {id:"d1",label:"Schimbă imaginea CO₂",done:false},{id:"d2",label:"100% nein, aber bis zu 80% definitiv ja",done:false},{id:"d3",label:"Post CO₂ — text Liliana",done:false},{id:"d4",label:"Revizie + export",done:false}
+  ]},
+  { id:"banner", client:"D DERMA", title:"Banner direcțional", priority:"high", status:"next", hours:1.75, note:"Confirmă dimensiunea 85 × 110 × H1163 mm înainte de design", subtasks:[{id:"b1",label:"Confirmă dimensiuni",done:false},{id:"b2",label:"Preia text WhatsApp",done:false},{id:"b3",label:"Design + direcție",done:false},{id:"b4",label:"Print-ready",done:false}]},
+  { id:"soho", client:"Soho Point of Beauty", title:"Sticker pentru sticlă", priority:"medium", status:"next", hours:1.75, note:"Actualizează varianta cu headline-uri portocalii", subtasks:[{id:"s1",label:"Găsește design precedent",done:false},{id:"s2",label:"Actualizează serviciile",done:false},{id:"s3",label:"Verifică dimensiuni",done:false},{id:"s4",label:"Export print",done:false}]},
+  { id:"tek", client:"Tekreart", title:"Filament Drying Guide", priority:"medium", status:"next", hours:2.5, note:"Carousel educațional: temperatură + timp de uscare", subtasks:[{id:"t1",label:"Verifică datele Creality",done:false},{id:"t2",label:"PLA / PETG / TPU / ABS / ASA / Nylon",done:false},{id:"t3",label:"Design carousel",done:false},{id:"t4",label:"Caption + CTA",done:false}]},
+  { id:"highlights", client:"D DERMA", title:"Instagram Highlights cleanup", priority:"low", status:"next", hours:2, note:"Haut · Körper · Laser · Injektionen · Schulungen · Presse · FAQ", subtasks:[{id:"h1",label:"Covers",done:false},{id:"h2",label:"Reorganizează stories",done:false},{id:"h3",label:"Elimină highlights redundante",done:false}]}
+];
+
+const columns: {key:Status; label:string; hint:string}[] = [
+  {key:"now",label:"NOW",hint:"Lucrează aici"},{key:"next",label:"NEXT",hint:"După ce termini NOW"},{key:"waiting",label:"WAITING",hint:"Blocat / așteaptă info"},{key:"done",label:"DONE",hint:"Terminat"},
+];
+
+function progress(task: Task) {
+  if (!task.subtasks.length) return task.status === "done" ? 100 : 0;
+  return Math.round(task.subtasks.filter(s=>s.done).length / task.subtasks.length * 100);
+}
+
+export default function Home() {
+  const [tasks,setTasks] = useState<Task[]>(seed);
+  const [open,setOpen] = useState<string|null>(null);
+  const [ready,setReady] = useState(false);
+
+  useEffect(()=>{
+    const saved = localStorage.getItem("marina-production-board-v1");
+    if(saved) { try { setTasks(JSON.parse(saved)); } catch {} }
+    setReady(true);
+  },[]);
+  useEffect(()=>{ if(ready) localStorage.setItem("marina-production-board-v1",JSON.stringify(tasks)); },[tasks,ready]);
+
+  const active = tasks.filter(t=>t.status!=="done");
+  const hours = active.reduce((sum,t)=>sum+t.hours*(1-progress(t)/100),0);
+  const high = active.filter(t=>t.priority==="critical"||t.priority==="high").length;
+  const done = tasks.filter(t=>t.status==="done").length;
+
+  const toggleSub = (taskId:string, subId:string) => setTasks(prev=>prev.map(t=> t.id!==taskId?t:{...t,subtasks:t.subtasks.map(s=>s.id===subId?{...s,done:!s.done}:s)}));
+  const move = (taskId:string,status:Status) => setTasks(prev=>prev.map(t=>t.id===taskId?{...t,status}:t));
+  const markDone = (taskId:string) => setTasks(prev=>prev.map(t=>t.id===taskId?{...t,status:"done",subtasks:t.subtasks.map(s=>({...s,done:true}))}:t));
+  const selected = useMemo(()=>tasks.find(t=>t.id===open),[tasks,open]);
+
+  return <main className="shell">
+    <header>
+      <div><p className="eyebrow">PRODUCTION BOARD</p><h1>Ce trebuie să fac acum?</h1><p className="date">Focus pe ce contează. Restul poate aștepta.</p></div>
+      <button className="ghost" onClick={()=>{localStorage.removeItem("marina-production-board-v1");setTasks(seed)}}>Reset</button>
+    </header>
+
+    <section className="stats">
+      <div><strong>{active.length}</strong><span>Active</span></div>
+      <div><strong>{high}</strong><span>High priority</span></div>
+      <div><strong>~{hours.toFixed(1)}h</strong><span>Work remaining</span></div>
+      <div><strong>{done}</strong><span>Done</span></div>
+    </section>
+
+    <section className="focus">
+      <span>DO FIRST</span><strong>Nataly Promo</strong><i>→</i><strong>Ciocârlia Website</strong>
+    </section>
+
+    <section className="board">
+      {columns.map(col=><div className="column" key={col.key}>
+        <div className="columnTitle"><div><b>{col.label}</b><small>{col.hint}</small></div><em>{tasks.filter(t=>t.status===col.key).length}</em></div>
+        <div className="stack">
+          {tasks.filter(t=>t.status===col.key).map(task=>{
+            const pct=progress(task);
+            return <article className={`card ${task.priority}`} key={task.id}>
+              <div className="meta"><span>{task.client}</span><b>{task.priority}</b></div>
+              <h2>{task.title}</h2>
+              {task.note&&<p>{task.note}</p>}
+              <div className="time"><span>⏱ {task.hours}h</span><span>{pct}%</span></div>
+              <div className="bar"><i style={{width:`${pct}%`}} /></div>
+              <div className="actions">
+                <button onClick={()=>setOpen(task.id)}>Details</button>
+                {task.status!=="done"?<button className="check" onClick={()=>markDone(task.id)}>✓ Done</button>:<button onClick={()=>move(task.id,"next")}>Reopen</button>}
+              </div>
+            </article>
+          })}
+        </div>
+      </div>)}
+    </section>
+
+    {selected&&<div className="overlay" onClick={()=>setOpen(null)}><aside onClick={e=>e.stopPropagation()}>
+      <button className="close" onClick={()=>setOpen(null)}>×</button>
+      <p className="eyebrow">{selected.client}</p><h2>{selected.title}</h2>
+      <div className="detailMeta"><span className={`pill ${selected.priority}`}>{selected.priority}</span><span>⏱ {selected.hours}h estimated</span></div>
+      {selected.note&&<div className="note">{selected.note}</div>}
+      <h3>Checklist</h3>
+      <div className="checklist">{selected.subtasks.map(s=><label key={s.id} className={s.done?"completed":""}><input type="checkbox" checked={s.done} onChange={()=>toggleSub(selected.id,s.id)}/><span>{s.label}</span></label>)}</div>
+      <h3>Move task</h3>
+      <div className="moves">{columns.map(c=><button key={c.key} className={selected.status===c.key?"active":""} onClick={()=>move(selected.id,c.key)}>{c.label}</button>)}</div>
+    </aside></div>}
+  </main>;
+}
