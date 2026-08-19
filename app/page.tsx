@@ -19,14 +19,15 @@ const seed: Task[] = [
 ];
 const columns:{key:Status;label:string;hint:string}[]=[{key:"now",label:"NOW",hint:"Lucrează aici"},{key:"next",label:"NEXT",hint:"După ce termini NOW"},{key:"waiting",label:"WAITING",hint:"Blocat / așteaptă info"},{key:"done",label:"DONE",hint:"Terminat"}];
 const projectLabel:Record<Project,string>={seo:"SEO / Nataly",ciocarlia:"Ciocârlia",dderma:"D DERMA",soho:"Soho",tekreart:"Tekreart"};
+const STORAGE_KEY="marina-production-board-v2";
 function progress(task:Task){if(!task.subtasks.length)return task.status==="done"?100:0;return Math.round(task.subtasks.filter(s=>s.done).length/task.subtasks.length*100)}
 export default function Home(){
  const [tasks,setTasks]=useState<Task[]>(seed); const [open,setOpen]=useState<string|null>(null); const [ready,setReady]=useState(false);
- useEffect(()=>{const saved=localStorage.getItem("marina-production-board-v1");if(saved){try{const old=JSON.parse(saved) as Task[];setTasks(old.map(t=>({...t,project:t.project??(t.id==="nataly"?"seo":t.id==="ciocarlia"?"ciocarlia":t.id==="tek"?"tekreart":t.id==="soho"?"soho":"dderma")})))}catch{}}setReady(true)},[]);
- useEffect(()=>{if(ready)localStorage.setItem("marina-production-board-v1",JSON.stringify(tasks))},[tasks,ready]);
+ useEffect(()=>{const saved=localStorage.getItem(STORAGE_KEY);if(saved){try{setTasks(JSON.parse(saved) as Task[])}catch{setTasks(seed)}}else{setTasks(seed)}setReady(true)},[]);
+ useEffect(()=>{if(ready)localStorage.setItem(STORAGE_KEY,JSON.stringify(tasks))},[tasks,ready]);
  const active=tasks.filter(t=>t.status!=="done"),hours=active.reduce((s,t)=>s+t.hours*(1-progress(t)/100),0),high=active.filter(t=>t.priority==="critical"||t.priority==="high").length,done=tasks.filter(t=>t.status==="done").length;
  const toggleSub=(tid:string,sid:string)=>setTasks(p=>p.map(t=>t.id!==tid?t:{...t,subtasks:t.subtasks.map(s=>s.id===sid?{...s,done:!s.done}:s)})); const move=(id:string,status:Status)=>setTasks(p=>p.map(t=>t.id===id?{...t,status}:t)); const markDone=(id:string)=>setTasks(p=>p.map(t=>t.id===id?{...t,status:"done",subtasks:t.subtasks.map(s=>({...s,done:true}))}:t)); const selected=useMemo(()=>tasks.find(t=>t.id===open),[tasks,open]);
- return <main className="shell"><header><div><p className="eyebrow">PRODUCTION BOARD</p><h1>Ce trebuie să fac acum?</h1><p className="date">Culoarea = proiectul. Prioritatea = badge-ul.</p></div><button className="ghost" onClick={()=>{localStorage.removeItem("marina-production-board-v1");setTasks(seed)}}>Reset</button></header>
+ return <main className="shell"><header><div><p className="eyebrow">PRODUCTION BOARD</p><h1>Ce trebuie să fac acum?</h1><p className="date">Culoarea = proiectul. Prioritatea = badge-ul.</p></div><button className="ghost" onClick={()=>{localStorage.removeItem(STORAGE_KEY);setTasks(seed)}}>Reset</button></header>
  <section className="stats"><div><strong>{active.length}</strong><span>Active</span></div><div><strong>{high}</strong><span>High priority</span></div><div><strong>~{hours.toFixed(1)}h</strong><span>Work remaining</span></div><div><strong>{done}</strong><span>Done</span></div></section>
  <section className="legend">{(Object.keys(projectLabel) as Project[]).map(p=><span key={p} className={`legendItem ${p}`}><i/>{projectLabel[p]}</span>)}</section>
  <section className="focus"><span>DO FIRST</span><strong>Nataly Promo</strong><i>→</i><strong>Ciocârlia Website</strong></section>
